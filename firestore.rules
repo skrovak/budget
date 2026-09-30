@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only the two household accounts can read or change budget entries.
+    // Replace the two emails below with the ones you signed up with, in lowercase.
+    match /entries/{entryId} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in ['your.email@example.com', 'partner.email@example.com'];
+    }
+  }
+}

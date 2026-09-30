@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Household Budget Book</title>
+<meta name="description" content="Our shared monthly budget: salary, daily expenses and bills.">
+<meta name="theme-color" content="#0d6b57">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column ledger — month bar, balance sheet, entry form, then bills / expenses / income lists */
+:root {
+  --bg: #eef2f1;
+  --surface: #ffffff;
+  --ink: #16302b;
+  --muted: #5b716c;
+  --line: #d3dedb;
+  --accent: #0d6b57;
+  --accent-soft: #d6ebe5;
+  --warn: #b25b00;
+  --warn-soft: #fbe9d4;
+  --bad: #b3261e;
+  --bad-soft: #f8dcd9;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1a18; --surface: #16241f; --ink: #e3eeeb; --muted: #93aaa4; --line: #29403a;
+    --accent: #4fc3a1; --accent-soft: #1c3b33; --warn: #f0a55a; --warn-soft: #3a2a18;
+    --bad: #f28b82; --bad-soft: #3d1f1d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1a18; --surface: #16241f; --ink: #e3eeeb; --muted: #93aaa4; --line: #29403a;
+  --accent: #4fc3a1; --accent-soft: #1c3b33; --warn: #f0a55a; --warn-soft: #3a2a18;
+  --bad: #f28b82; --bad-soft: #3d1f1d; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+img { max-width: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: flex; flex-direction: column; gap: 22px; }
+h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.1rem; font-weight: 700; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+.monthbar { display: flex; align-items: center; gap: 6px; }
+.monthbar button:disabled { opacity: .35; cursor: default; }
+.monthbar button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.1rem; }
+.monthbar .m { min-width: 150px; text-align: center; font-family: var(--display); font-weight: 500; font-size: 1.05rem; }
+
+.notice { padding: 10px 14px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 0.9rem; }
+
+/* Balance sheet */
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.left-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.left-amt { font-family: var(--mono); font-size: clamp(1.9rem, 7vw, 2.6rem); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.left-amt.neg { color: var(--bad); }
+.pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+.pill.ok { background: var(--accent-soft); color: var(--accent); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.meter { height: 10px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+.meter .b { background: var(--warn); }
+.meter .e { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.82rem; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; background: var(--c); }
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.fig { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--line); padding-top: 10px; }
+.fig .v { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fig .s { font-size: 0.8rem; color: var(--muted); }
+
+/* Form */
+.add { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.seg { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { flex: 1; border: 0; background: transparent; color: var(--muted); padding: 8px 6px; border-radius: 8px; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+.fields { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.fields .full { grid-column: 1 / -1; }
+@media (max-width: 480px) { .fields { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; min-width: 0; }
+input.amount { font-family: var(--mono); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 5px 12px; font-size: 0.85rem; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.primary { background: var(--accent); color: var(--surface); border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 600; }
+.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; font-weight: 600; }
+.formmsg { font-size: 0.85rem; color: var(--muted); }
+.formmsg.err { color: var(--bad); }
+
+/* Lists */
+section.list { display: flex; flex-direction: column; gap: 10px; }
+.list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.list-head .tot { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+.rows { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.day { padding: 8px 16px 4px; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; background: var(--bg); display: flex; justify-content: space-between; }
+.row { display: grid; grid-template-columns: auto 1fr auto; column-gap: 12px; row-gap: 2px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); }
+.row .btns { grid-column: 2 / -1; justify-content: flex-end; }
+@media (min-width: 560px) { .row { grid-template-columns: auto 1fr auto auto; } .row .btns { grid-column: auto; } }
+.day + .row { border-top: 0; }
+.row:first-child { border-top: 0; }
+.row .what { min-width: 0; }
+.row .what b { font-weight: 600; display: block; overflow-wrap: anywhere; }
+.row .what small { color: var(--muted); font-size: 0.8rem; }
+.row .amt { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.row.paid .what b { color: var(--muted); }
+.tick { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--line); background: transparent; display: grid; place-items: center; color: var(--surface); padding: 0; }
+.tick[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--muted)); }
+.edit { border: 0; background: transparent; color: var(--accent); padding: 4px 6px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+.btns { display: flex; gap: 2px; }
+.row.editing { background: var(--accent-soft); }
+.add.editing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.del { border: 0; background: transparent; color: var(--muted); padding: 4px 6px; border-radius: 6px; font-size: 0.8rem; }
+.del.arm { background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+.empty { padding: 18px 16px; color: var(--muted); font-size: 0.9rem; }
+
+.cats { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.cat { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; font-size: 0.88rem; }
+.cat .bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.cat .bar i { display: block; height: 100%; background: var(--c); border-radius: 999px; }
+.cat .num { text-align: right; }
+@media (prefers-reduced-motion: no-preference) { .meter i, .cat .bar i { transition: width .4s ease; } }
+
+body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); min-height: 100vh; -webkit-text-size-adjust: 100%; }
+input, select { font-size: 16px; } /* stops iPhone zooming into fields */
+.who { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); }
+.who button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600; }
+.sync { display: inline-flex; align-items: center; gap: 6px; }
+.sync::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.sync.off::before { background: var(--warn); }
+.signin { min-height: 80vh; display: grid; place-items: center; padding-inline: 16px; padding-block: 32px; }
+.signin-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.signin-card img { border-radius: 14px; }
+.signin-card p { margin: 0; color: var(--muted); }
+.signin-card form { display: flex; flex-direction: column; gap: 12px; }
+.linkbtn { border: 0; background: none; color: var(--accent); padding: 0; font-weight: 600; font-size: 0.85rem; align-self: start; }
+.setup { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 12px 14px; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main class="signin" id="signin" hidden>
+  <div class="signin-card">
+    <img src="icons/icon-192.png" alt="" width="56" height="56">
+    <h1>Household Budget Book</h1>
+    <p id="signinIntro">Sign in with the account set up for your household.</p>
+    <div class="setup" id="setupMsg" hidden>This app isn't connected to Firebase yet. Open config.js and paste in your Firebase settings (see step 3 of the setup guide).</div>
+    <form id="signinForm" autocomplete="on">
+      <div class="field"><label for="siEmail">Email</label><input id="siEmail" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="siPass">Password</label><input id="siPass" type="password" autocomplete="current-password" required></div>
+      <button class="primary" type="submit" id="siBtn">Sign in</button>
+      <button class="linkbtn" type="button" id="siReset">Forgot password?</button>
+      <span class="formmsg" id="siMsg" role="status"></span>
+    </form>
+  </div>
+</main>
+
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <div class="label">Household budget</div>
+      <h1>Where our money goes</h1>
+      <div class="who"><span class="sync" id="sync">Online</span><span id="whoEmail"></span><button type="button" id="signOut">Sign out</button></div>
+    </div>
+    <div class="monthbar">
+      <button id="prev" aria-label="Previous month">‹</button>
+      <div class="m" id="monthLabel">—</div>
+      <button id="next" aria-label="Next month">›</button>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="sheet" aria-label="Month summary">
+    <div class="left-row">
+      <div>
+        <div class="label">Left this month</div>
+        <div class="left-amt" id="leftAmt">₱0.00</div>
+      </div>
+      <span class="pill ok" id="statusPill">Add your salary to start</span>
+    </div>
+    <div class="meter" aria-hidden="true"><i class="b" id="mB" style="width:0"></i><i class="e" id="mE" style="width:0"></i></div>
+    <div class="legend"><span style="--c: var(--warn)">Bills</span><span style="--c: var(--accent)">Daily expenses</span><span style="--c: var(--accent-soft)">Still free</span></div>
+    <div class="figs">
+      <div class="fig"><span class="label">Salary &amp; income</span><span class="v" id="fIncome">₱0.00</span><span class="s" id="fIncomeS">No income yet</span></div>
+      <div class="fig"><span class="label">Bills</span><span class="v" id="fBills">₱0.00</span><span class="s" id="fBillsS">None added</span></div>
+      <div class="fig"><span class="label">Daily expenses</span><span class="v" id="fExp">₱0.00</span><span class="s" id="fExpS">None yet</span></div>
+      <div class="fig"><span class="label">Per day, rest of month</span><span class="v" id="fDaily">—</span><span class="s" id="fDailyS">&nbsp;</span></div>
+    </div>
+  </section>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <h2 id="formTitle">Add an entry</h2>
+    <div class="seg" role="group" aria-label="Entry type">
+      <button type="button" data-kind="expense" aria-pressed="true">Expense</button>
+      <button type="button" data-kind="bill" aria-pressed="false">Bill</button>
+      <button type="button" data-kind="income" aria-pressed="false">Salary / income</button>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="fLabel" id="fLabelL">What was it?</label><input id="fLabel" placeholder="e.g. Lunch at work"></div>
+      <div class="field"><label for="fAmount">Amount (₱)</label><input id="fAmount" class="amount" inputmode="decimal" placeholder="0.00"></div>
+      <div class="field"><label for="fDate" id="fDateL">Date</label><input id="fDate" type="date"></div>
+      <div class="field" id="paidWrap" hidden><label for="fPaid">Status</label><select id="fPaid"><option value="0">Not paid yet</option><option value="1">Already paid</option></select></div>
+      <div class="field full" id="catWrap"><label>Category</label><div class="chips" id="chips"></div></div>
+    </div>
+    <div class="actions">
+      <button class="primary" type="submit" id="submitBtn">Add expense</button>
+      <button class="ghost" type="button" id="cancelEdit" hidden>Cancel</button>
+      <span class="formmsg" id="formMsg" role="status"></span>
+    </div>
+  </form>
+
+  <section class="list" aria-labelledby="hBills">
+    <div class="list-head"><h2 id="hBills">Bills</h2><span class="tot" id="billsTot"></span></div>
+    <div class="rows" id="billRows"></div>
+    <div class="actions"><button class="ghost" id="copyBills" type="button">Copy bills from last month</button><span class="formmsg" id="copyMsg" role="status"></span></div>
+  </section>
+
+  <section class="list" aria-labelledby="hExp">
+    <div class="list-head"><h2 id="hExp">Daily expenses</h2><span class="tot" id="expTot"></span></div>
+    <div class="cats" id="cats" hidden></div>
+    <div class="rows" id="expRows"></div>
+  </section>
+
+  <section class="list" aria-labelledby="hInc">
+    <div class="list-head"><h2 id="hInc">Salary &amp; income</h2><span class="tot" id="incTot"></span></div>
+    <div class="rows" id="incRows"></div>
+  </section>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection as fsCol, doc as fsDoc, query as fsQuery, where as fsWhere, onSnapshot as fsOn, getDocs, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig, START_MONTH } from "./config.js";
+
+const CATS = {
+  expense: [["Food","#e07a5f"],["Groceries","#3d9970"],["Transport","#4a7fc1"],["Household","#9c6ade"],["Health","#d1495b"],["Kids","#e0a100"],["Leisure","#2bb3b1"],["Other","#8a8f98"]],
+  bill: [["Rent","#9c6ade"],["Electricity","#e0a100"],["Water","#4a7fc1"],["Internet","#2bb3b1"],["Phone","#3d9970"],["Loan","#d1495b"],["Insurance","#e07a5f"],["Other","#8a8f98"]],
+  income: [["Salary","#0d6b57"],["Side income","#3d9970"],["Other","#8a8f98"]]
+};
+const colorOf = (kind, cat) => ((CATS[kind] || []).find(c => c[0] === cat) || [0, "#8a8f98"])[1];
+const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
+const money = n => peso.format(n || 0);
+const pad = n => String(n).padStart(2, "0");
+const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+const monthOf = s => s.slice(0, 7);
+const monthName = key => { const [y, m] = key.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }); };
+const shiftMonth = (key, d) => { let [y, m] = key.split("-").map(Number); m += d; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return y + "-" + pad(m); };
+const daysIn = key => { const [y, m] = key.split("-").map(Number); return new Date(y, m, 0).getDate(); };
+const $ = id => document.getElementById(id);
+
+const START = START_MONTH || "2026-10";
+let db = null, auth = null, unsub = null, entries = [], month = monthOf(todayStr()) < START ? START : monthOf(todayStr()), kind = "expense", cat = "Food", canWrite = true, editing = null;
+
+function setKind(k) {
+  kind = k; cat = CATS[k][0][0];
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.kind === k)));
+  $("fLabelL").textContent = k === "expense" ? "What was it?" : k === "bill" ? "Which bill?" : "From where?";
+  $("fLabel").placeholder = k === "expense" ? "e.g. Lunch at work" : k === "bill" ? "e.g. Electricity" : "e.g. Mark's salary";
+  $("fDateL").textContent = k === "bill" ? "Due date" : k === "income" ? "Date received" : "Date";
+  $("paidWrap").hidden = k !== "bill";
+  $("submitBtn").textContent = editing ? "Save changes" : k === "expense" ? "Add expense" : k === "bill" ? "Add bill" : "Add income";
+  renderChips();
+}
+function renderChips() {
+  const box = $("chips"); box.textContent = "";
+  CATS[kind].forEach(([name]) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = name;
+    b.setAttribute("aria-pressed", String(name === cat));
+    b.onclick = () => { cat = name; renderChips(); };
+    box.appendChild(b);
+  });
+}
+
+function defaultDate() {
+  const t = todayStr();
+  return monthOf(t) === month ? t : month + "-01";
+}
+
+function render() {
+  $("monthLabel").textContent = monthName(month);
+  $("prev").disabled = month <= START;
+  if (!$("fDate").value) $("fDate").value = defaultDate();
+
+  const inc = entries.filter(e => e.kind === "income");
+  const bills = entries.filter(e => e.kind === "bill");
+  const exps = entries.filter(e => e.kind === "expense");
+  const sum = a => a.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const I = sum(inc), B = sum(bills), E = sum(exps), L = I - B - E;
+  const unpaid = bills.filter(b => !b.paid), U = sum(unpaid);
+
+  $("leftAmt").textContent = money(L);
+  $("leftAmt").classList.toggle("neg", L < 0);
+  const pill = $("statusPill");
+  const used = I > 0 ? (B + E) / I : 0;
+  if (I === 0 && B + E === 0) { pill.className = "pill ok"; pill.textContent = "Add your salary to start"; }
+  else if (I === 0) { pill.className = "pill warn"; pill.textContent = "No income added yet"; }
+  else if (L < 0) { pill.className = "pill bad"; pill.textContent = "Over budget by " + money(-L); }
+  else if (used > 0.85) { pill.className = "pill warn"; pill.textContent = Math.round(used * 100) + "% used"; }
+  else { pill.className = "pill ok"; pill.textContent = Math.round(used * 100) + "% used"; }
+
+  const base = Math.max(I, B + E) || 1;
+  $("mB").style.width = (B / base * 100) + "%";
+  $("mE").style.width = (E / base * 100) + "%";
+
+  $("fIncome").textContent = money(I);
+  $("fIncomeS").textContent = inc.length ? inc.length + (inc.length === 1 ? " entry" : " entries") : "No income yet";
+  $("fBills").textContent = money(B);
+  $("fBillsS").textContent = bills.length ? (U > 0 ? money(U) + " still unpaid" : "All paid") : "None added";
+  $("fExp").textContent = money(E);
+  $("fExpS").textContent = exps.length ? exps.length + (exps.length === 1 ? " purchase" : " purchases") : "None yet";
+
+  const t = todayStr(), tm = monthOf(t), dim = daysIn(month);
+  let daysLeft = month === tm ? dim - Number(t.slice(8)) + 1 : month > tm ? dim : 0;
+  if (daysLeft > 0 && I > 0) {
+    $("fDaily").textContent = money(Math.max(L, 0) / daysLeft);
+    $("fDailyS").textContent = daysLeft + (daysLeft === 1 ? " day left" : " days left");
+  } else {
+    $("fDaily").textContent = "—";
+    $("fDailyS").textContent = daysLeft === 0 ? "Month is over" : "Add income first";
+  }
+
+  // Bills
+  $("billsTot").textContent = bills.length ? money(B) : "";
+  const br = $("billRows"); br.textContent = "";
+  if (!bills.length) br.innerHTML = '<div class="empty">No bills this month. Add rent, electricity, water or internet above, or copy last month\'s bills.</div>';
+  bills.slice().sort((a, b) => (a.paid - b.paid) || a.date.localeCompare(b.date)).forEach(b => {
+    const due = new Date(b.date + "T00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const late = !b.paid && b.date < t;
+    br.appendChild(row(b, {
+      lead: tickBtn(b),
+      sub: (b.paid ? "Paid · " : late ? "Overdue · " : "Due ") + due + " · " + b.category,
+      late
+    }));
+  });
+
+  // Expenses grouped by day
+  $("expTot").textContent = exps.length ? money(E) : "";
+  const er = $("expRows"); er.textContent = "";
+  if (!exps.length) er.innerHTML = '<div class="empty">Nothing spent yet this month. Log food, fare and groceries above as you go.</div>';
+  const byDay = {};
+  exps.forEach(e => (byDay[e.date] = byDay[e.date] || []).push(e));
+  Object.keys(byDay).sort().reverse().forEach(d => {
+    const h = document.createElement("div"); h.className = "day";
+    const dl = new Date(d + "T00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    h.innerHTML = "<span></span><span class='num'></span>";
+    h.children[0].textContent = d === t ? "Today · " + dl : dl;
+    h.children[1].textContent = money(sum(byDay[d]));
+    er.appendChild(h);
+    byDay[d].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).forEach(e => er.appendChild(row(e, { lead: dot(e), sub: e.category })));
+  });
+
+  // Category breakdown
+  const cats = $("cats"); cats.textContent = "";
+  cats.hidden = !exps.length;
+  const ct = {}; exps.forEach(e => ct[e.category] = (ct[e.category] || 0) + (Number(e.amount) || 0));
+  const max = Math.max(...Object.values(ct), 1);
+  Object.entries(ct).sort((a, b) => b[1] - a[1]).forEach(([c, v]) => {
+    const d = document.createElement("div"); d.className = "cat"; d.style.setProperty("--c", colorOf("expense", c));
+    d.innerHTML = "<span></span><div class='bar'><i></i></div><span class='num'></span>";
+    d.children[0].textContent = c;
+    d.querySelector("i").style.width = (v / max * 100) + "%";
+    d.children[2].textContent = money(v);
+    cats.appendChild(d);
+  });
+
+  // Income
+  $("incTot").textContent = inc.length ? money(I) : "";
+  const ir = $("incRows"); ir.textContent = "";
+  if (!inc.length) ir.innerHTML = '<div class="empty">Add each salary that comes in this month. If you both earn, add one entry each.</div>';
+  inc.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
+    const dl = new Date(e.date + "T00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    ir.appendChild(row(e, { lead: dot(e), sub: e.category + " · " + dl }));
+  });
+
+  $("copyBills").hidden = !canWrite;
+}
+
+function dot(e) { const s = document.createElement("span"); s.className = "dot"; s.style.setProperty("--c", colorOf(e.kind, e.category)); return s; }
+function tickBtn(b) {
+  const t = document.createElement("button"); t.className = "tick"; t.setAttribute("role", "checkbox");
+  t.setAttribute("aria-checked", String(!!b.paid)); t.setAttribute("aria-label", "Mark " + b.label + " as paid");
+  t.innerHTML = b.paid ? "✓" : ""; t.disabled = !canWrite;
+  t.onclick = async () => {
+    try { await db.doc("entries/" + b.id).update({ paid: !b.paid }); }
+    catch (e) { showNotice("Couldn't update that bill. Try again."); }
+  };
+  return t;
+}
+function row(e, { lead, sub, late }) {
+  const r = document.createElement("div"); r.className = "row" + (e.paid ? " paid" : "") + (editing && editing.id === e.id ? " editing" : "");
+  r.appendChild(lead);
+  const w = document.createElement("div"); w.className = "what";
+  const b = document.createElement("b"); b.textContent = e.label;
+  const s = document.createElement("small"); s.textContent = sub; if (late) s.style.color = "var(--bad)";
+  w.append(b, s); r.appendChild(w);
+  const a = document.createElement("span"); a.className = "amt"; a.textContent = money(e.amount);
+  if (e.kind === "income") a.style.color = "var(--accent)";
+  r.appendChild(a);
+  const d = document.createElement("button"); d.className = "del"; d.type = "button"; d.textContent = "Remove";
+  const btns = document.createElement("div"); btns.className = "btns"; btns.hidden = !canWrite;
+  const ed = document.createElement("button"); ed.className = "edit"; ed.type = "button"; ed.textContent = "Edit";
+  ed.setAttribute("aria-label", "Edit " + e.label);
+  ed.onclick = () => startEdit(e);
+  let armed = null;
+  d.onclick = async () => {
+    if (!d.classList.contains("arm")) {
+      d.classList.add("arm"); d.textContent = "Tap to confirm";
+      armed = setTimeout(() => { d.classList.remove("arm"); d.textContent = "Remove"; }, 3000);
+      return;
+    }
+    clearTimeout(armed);
+    try { if (editing && editing.id === e.id) stopEdit(); await db.doc("entries/" + e.id).delete(); }
+    catch (err) { showNotice("Couldn't remove that entry. Try again."); }
+  };
+  btns.append(ed, d); r.appendChild(btns);
+  return r;
+}
+
+function startEdit(e) {
+  editing = e;
+  setKind(e.kind);
+  cat = e.category; renderChips();
+  $("fLabel").value = e.label;
+  $("fAmount").value = String(e.amount);
+  $("fDate").value = e.date;
+  if (e.kind === "bill") $("fPaid").value = e.paid ? "1" : "0";
+  $("formTitle").textContent = "Edit " + e.label;
+  $("submitBtn").textContent = "Save changes";
+  $("cancelEdit").hidden = false;
+  $("addForm").classList.add("editing");
+  $("formMsg").className = "formmsg"; $("formMsg").textContent = "";
+  render();
+  $("addForm").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  $("fAmount").focus({ preventScroll: true });
+}
+function stopEdit() {
+  editing = null;
+  $("formTitle").textContent = "Add an entry";
+  $("cancelEdit").hidden = true;
+  $("addForm").classList.remove("editing");
+  $("fLabel").value = ""; $("fAmount").value = ""; $("fPaid").value = "0";
+  $("fDate").value = defaultDate();
+  setKind(kind);
+  render();
+}
+$("cancelEdit").onclick = () => { stopEdit(); $("formMsg").textContent = ""; };
+
+
+// ---- Firebase connection ----
+// A thin layer so the rest of the app talks to one simple "db" object.
+// Writes are saved on the phone first and sync when there's signal, so the app never waits on the network.
+function reportWriteError(e) {
+  showNotice(e && e.code === "permission-denied"
+    ? "This account isn't allowed to change the budget. Check the email list in your Firestore rules."
+    : "A change couldn't be saved. Check your connection and try again.");
+}
+function wrapSnap(s) { return { docs: s.docs.map(d => ({ id: d.id, data: () => d.data() })), size: s.size }; }
+function makeDb(fs) {
+  const queryRef = (path, filters) => {
+    const build = () => fsQuery(fsCol(fs, path), ...filters.map(w => fsWhere(...w)));
+    return {
+      where: (f, op, v) => queryRef(path, [...filters, [f, op, v]]),
+      onSnapshot: (next, err) => fsOn(build(), s => next(wrapSnap(s)), err),
+      get: async () => wrapSnap(await getDocs(build())),
+      add: data => { addDoc(fsCol(fs, path), data).catch(reportWriteError); return Promise.resolve(); }
+    };
+  };
+  return {
+    collection: p => queryRef(p, []),
+    doc: p => ({
+      update: data => { updateDoc(fsDoc(fs, p), data).catch(reportWriteError); return Promise.resolve(); },
+      delete: () => { deleteDoc(fsDoc(fs, p)).catch(reportWriteError); return Promise.resolve(); }
+    })
+  };
+}
+
+function showNotice(msg) { $("notice").textContent = msg; $("notice").hidden = !msg; }
+
+function subscribe() {
+  $("copyMsg").textContent = "";
+  if (unsub) { unsub(); unsub = null; }
+  entries = []; render();
+  if (!db) return;
+  unsub = db.collection("entries").where("month", "==", month).onSnapshot(
+    snap => { entries = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
+    e => showNotice(e && e.code === "permission-denied"
+      ? "This account can't see the budget. Add its email to the Firestore rules (setup guide, step 4)."
+      : "Lost the connection to your entries. Close and reopen the app to reconnect.")
+  );
+}
+
+$("prev").onclick = () => { if (month <= START) return; if (editing) stopEdit(); month = shiftMonth(month, -1); $("fDate").value = defaultDate(); subscribe(); };
+$("next").onclick = () => { if (editing) stopEdit(); month = shiftMonth(month, 1); $("fDate").value = defaultDate(); subscribe(); };
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => setKind(b.dataset.kind));
+
+$("addForm").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const msg = $("formMsg"); msg.className = "formmsg";
+  const label = $("fLabel").value.trim();
+  const amount = Math.round(parseFloat($("fAmount").value.replace(/[,₱\s]/g, "")) * 100) / 100;
+  const date = $("fDate").value;
+  if (!label) { msg.className = "formmsg err"; msg.textContent = "Add a short name, like \"Groceries\" or \"Electricity bill\"."; $("fLabel").focus(); return; }
+  if (!(amount > 0)) { msg.className = "formmsg err"; msg.textContent = "Enter an amount above zero."; $("fAmount").focus(); return; }
+  if (!date) { msg.className = "formmsg err"; msg.textContent = "Pick a date."; return; }
+  if (!db) { msg.className = "formmsg err"; msg.textContent = "Sign in to save entries."; return; }
+  const doc = { kind, label, amount, date, month: monthOf(date), category: cat, createdAt: Date.now() };
+  if (kind === "bill") doc.paid = $("fPaid").value === "1";
+  $("submitBtn").disabled = true;
+  if (editing) {
+    const id = editing.id;
+    delete doc.createdAt;
+    if (kind !== "bill") doc.paid = false;
+    try {
+      await db.doc("entries/" + id).update(doc);
+      stopEdit();
+      msg.textContent = "Saved " + label + " · " + money(amount) + (doc.month !== month ? " (moved to " + monthName(doc.month) + ")" : "");
+    } catch (e) {
+      msg.className = "formmsg err";
+      msg.textContent = "Couldn't save. Check your connection and try again.";
+    } finally { $("submitBtn").disabled = false; }
+    return;
+  }
+  try {
+    await db.collection("entries").add(doc);
+    $("fLabel").value = ""; $("fAmount").value = "";
+    msg.textContent = "Added " + label + " · " + money(amount) + (doc.month !== month ? " to " + monthName(doc.month) : "");
+    $("fLabel").focus();
+  } catch (e) {
+    msg.className = "formmsg err";
+    msg.textContent = "Couldn't save. Check your connection and try again.";
+  } finally { $("submitBtn").disabled = false; }
+});
+
+$("copyBills").onclick = async () => {
+  const m = $("copyMsg"); m.className = "formmsg"; m.textContent = "";
+  if (!db) return;
+  const prev = shiftMonth(month, -1);
+  try {
+    const all = await db.collection("entries").where("month", "==", prev).get();
+    const snap = { docs: all.docs.filter(d => d.data().kind === "bill") }; snap.size = snap.docs.length;
+    const existing = new Set(entries.filter(e => e.kind === "bill").map(e => e.label.toLowerCase()));
+    const todo = snap.docs.map(d => d.data()).filter(b => !existing.has(String(b.label).toLowerCase()));
+    if (!snap.size) { m.textContent = "No bills in " + monthName(prev) + " to copy."; return; }
+    if (!todo.length) { m.textContent = "All of last month's bills are already here."; return; }
+    const dim = daysIn(month);
+    for (const b of todo) {
+      const day = Math.min(Number(String(b.date).slice(8)) || 1, dim);
+      await db.collection("entries").add({ kind: "bill", label: b.label, amount: b.amount, category: b.category, date: month + "-" + pad(day), month, paid: false, createdAt: Date.now() });
+    }
+    m.textContent = "Copied " + todo.length + (todo.length === 1 ? " bill" : " bills") + " as unpaid. Tap Edit on any bill whose amount changed.";
+  } catch (e) { m.className = "formmsg err"; m.textContent = "Couldn't copy the bills. Try again."; }
+};
+
+setKind("expense");
+$("fDate").value = defaultDate();
+$("fDate").min = START + "-01";
+render();
+
+// ---- Sign-in and start-up ----
+function showApp(user) {
+  $("signin").hidden = true; $("app").hidden = false;
+  $("whoEmail").textContent = user.email || "";
+  subscribe();
+}
+function showSignIn() {
+  if (unsub) { unsub(); unsub = null; }
+  entries = [];
+  $("app").hidden = true; $("signin").hidden = false;
+}
+function updateSync() {
+  const on = navigator.onLine;
+  $("sync").textContent = on ? "Online" : "Offline · changes will sync later";
+  $("sync").classList.toggle("off", !on);
+}
+addEventListener("online", updateSync); addEventListener("offline", updateSync); updateSync();
+
+const configured = firebaseConfig && firebaseConfig.apiKey && !String(firebaseConfig.apiKey).startsWith("PASTE");
+if (!configured) {
+  $("signin").hidden = false; $("setupMsg").hidden = false; $("signinIntro").hidden = true; $("siBtn").disabled = true;
+} else {
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = makeDb(initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }));
+  onAuthStateChanged(auth, user => user ? showApp(user) : showSignIn());
+}
+
+$("signinForm").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const m = $("siMsg"); m.className = "formmsg"; m.textContent = "Signing in…";
+  $("siBtn").disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, $("siEmail").value.trim(), $("siPass").value);
+    m.textContent = ""; $("siPass").value = "";
+  } catch (e) {
+    m.className = "formmsg err";
+    const c = e && e.code || "";
+    m.textContent = c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found")
+      ? "That email and password don't match. Check both and try again."
+      : c.includes("network") ? "No internet connection. Connect once to sign in; after that the app works offline."
+      : c.includes("too-many-requests") ? "Too many tries. Wait a few minutes, or reset your password."
+      : "Couldn't sign in (" + c + ").";
+  } finally { $("siBtn").disabled = false; }
+});
+$("siReset").onclick = async () => {
+  const m = $("siMsg"); m.className = "formmsg";
+  const email = $("siEmail").value.trim();
+  if (!email) { m.className = "formmsg err"; m.textContent = "Type your email above first, then tap Forgot password."; return; }
+  if (!auth) return;
+  try { await sendPasswordResetEmail(auth, email); m.textContent = "Reset link sent to " + email + ". Check your inbox."; }
+  catch (e) { m.className = "formmsg err"; m.textContent = "Couldn't send the reset email. Check the address."; }
+};
+$("signOut").onclick = () => { if (editing) stopEdit(); signOut(auth); };
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
+</script>
+</body>
+</html>
